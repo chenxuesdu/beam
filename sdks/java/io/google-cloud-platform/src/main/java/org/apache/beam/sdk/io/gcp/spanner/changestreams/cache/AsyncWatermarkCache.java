@@ -63,7 +63,20 @@ public class AsyncWatermarkCache implements WatermarkCache {
                 CacheLoader.asyncReloading(
                     CacheLoader.from(
                         key -> {
+<<<<<<< HEAD
                           Timestamp unfinishedMinTimes = dao.getUnfinishedMinWatermark();
+=======
+                          Timestamp watermarkFulltable = dao.getUnfinishedMinWatermark();
+                          if (watermarkFulltable != null
+                              && lastCachedMinWatermark.get().compareTo(watermarkFulltable) > 0) {
+                            LOG.info(
+                                "Watermark move backward, the watermarkFulltable scan is: {}, last watermark is {}",
+                                watermarkFulltable,
+                                lastCachedMinWatermark);
+                          }
+                          Timestamp unfinishedMinTimes =
+                              dao.getUnfinishedMinWatermarkFrom(lastCachedMinWatermark.get());
+>>>>>>> a282e7e2faa (Add the logic to handle empty unfinished partition when refresh cache)
                           if (unfinishedMinTimes != null
                               && lastCachedMinWatermark.get().compareTo(unfinishedMinTimes) > 0) {
                             LOG.info(
@@ -74,7 +87,9 @@ public class AsyncWatermarkCache implements WatermarkCache {
 
                           if (unfinishedMinTimes != null) {
                             lastCachedMinWatermark.set(unfinishedMinTimes);
+                            LOG.info("Index cached watermark is set to {}", unfinishedMinTimes);
                           }
+<<<<<<< HEAD
                           //     dao.getUnfinishedMinWatermarkFrom(lastCachedMinWatermark.get());
                           // if (unfinishedMinTimes == null) {
                           //   unfinishedMinTimes = dao.getUnfinishedMinWatermark();
@@ -85,6 +100,9 @@ public class AsyncWatermarkCache implements WatermarkCache {
 
                           //       lastCachedMinWatermark);
                           // }
+=======
+
+>>>>>>> a282e7e2faa (Add the logic to handle empty unfinished partition when refresh cache)
                           // if (unfinishedMinTimes != null) {
                           //   lastCachedMinWatermark.set(unfinishedMinTimes);
                           // }

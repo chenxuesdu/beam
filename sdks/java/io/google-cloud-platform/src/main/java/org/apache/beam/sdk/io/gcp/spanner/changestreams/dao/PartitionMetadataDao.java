@@ -437,9 +437,12 @@ public class PartitionMetadataDao {
    * @param partitionToken the partition unique identifier
    * @param watermark the new partition watermark
    */
-  public void updateWatermark(String partitionToken, Timestamp watermark) {
-    runInTransaction(
-        transaction -> transaction.updateWatermark(partitionToken, watermark), "updateWatermark");
+  public Timestamp updateWatermark(String partitionToken, Timestamp watermark) {
+    final TransactionResult<Void> transactionResult =
+        runInTransaction(
+            transaction -> transaction.updateWatermark(partitionToken, watermark),
+            "updateWatermark");
+    return transactionResult.getCommitTimestamp();
   }
 
   /**
@@ -588,7 +591,27 @@ public class PartitionMetadataDao {
      * @return the commit timestamp of the read / write transaction
      */
     public Void updateWatermark(String partitionToken, Timestamp watermark) {
-      transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      final Struct partition = getPartition(partitionToken);
+      if (partition == null) {
+        LOG.info("Partiton {} cannot find.", partitionToken);
+        return null;
+      }
+      final Timestamp currentWatermark = partition.getTimestamp(COLUMN_WATERMARK);
+      LOG.info(
+          "{} current watermark in DB is {}, updating it to {}",
+          partitionToken,
+          currentWatermark,
+          watermark);
+      if (watermark.compareTo(currentWatermark) < 0) {
+        LOG.info(
+            "Partition {} is updating watermark with a smaller value. CurrentWatermark {},new watermark {}",
+            partitionToken,
+            currentWatermark,
+            watermark);
+      }
+      if (watermark.compareTo(currentWatermark) > 0) {
+        transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      }
       return null;
     }
 

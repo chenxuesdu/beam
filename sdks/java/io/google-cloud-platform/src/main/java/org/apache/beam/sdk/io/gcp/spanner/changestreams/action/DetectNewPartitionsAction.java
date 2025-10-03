@@ -117,6 +117,7 @@ public class DetectNewPartitionsAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       Timestamp minWatermark,
       Timestamp readTimestamp) {
+    LOG.info("DetectNewPartitionsAction set watermark to {}", minWatermark);
     // Updates watermark to the min watermark found
     watermarkEstimator.setWatermark(new Instant(minWatermark.toSqlTimestamp()));
 

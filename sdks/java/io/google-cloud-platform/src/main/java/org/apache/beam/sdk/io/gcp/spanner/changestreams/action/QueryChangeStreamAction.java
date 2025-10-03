@@ -319,8 +319,10 @@ public class QueryChangeStreamAction {
       final Instant watermark = watermarkEstimator.currentWatermark();
       LOG.info("[{}] Updating current watermark to {}", token, watermark);
       try {
-        partitionMetadataDao.updateWatermark(
-            token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
+        Timestamp commitTime =
+            partitionMetadataDao.updateWatermark(
+                token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
+        LOG.info("[{}] Updated current watermark to {} at {}", token, watermark, commitTime);
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
           LOG.info("[{}] Unable to update the current watermark, partition NOT FOUND", token);
