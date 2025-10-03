@@ -114,19 +114,19 @@ public class ChildPartitionsRecordAction {
 
     final String token = partition.getPartitionToken();
 
-    LOG.debug("[{}] Processing child partition record {}", token, record);
+    LOG.info("[{}] Processing child partition record {}", token, record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();
     final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
     if (interrupter.tryInterrupt(startTimestamp)) {
-      LOG.debug(
+      LOG.info(
           "[{}] Soft deadline reached with child partitions record at {}, rescheduling",
           token,
           startTimestamp);
       return Optional.of(ProcessContinuation.resume());
     }
     if (!tracker.tryClaim(startTimestamp)) {
-      LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, startTimestamp);
+      LOG.info("[{}] Could not claim queryChangeStream({}), stopping", token, startTimestamp);
       return Optional.of(ProcessContinuation.stop());
     }
     watermarkEstimator.setWatermark(startInstant);
@@ -135,7 +135,7 @@ public class ChildPartitionsRecordAction {
       processChildPartition(partition, record, childPartition);
     }
 
-    LOG.debug("[{}] Child partitions action completed successfully", token);
+    LOG.info("[{}] Child partitions action completed successfully", token);
     return Optional.empty();
   }
 
@@ -147,7 +147,7 @@ public class ChildPartitionsRecordAction {
     final String partitionToken = partition.getPartitionToken();
     final String childPartitionToken = childPartition.getToken();
     final boolean isSplit = isSplit(childPartition);
-    LOG.debug(
+    LOG.info(
         "[{}] Processing child partition {} event", partitionToken, (isSplit ? "split" : "merge"));
 
     final PartitionMetadata row =
@@ -156,7 +156,7 @@ public class ChildPartitionsRecordAction {
             partition.getEndTimestamp(),
             partition.getHeartbeatMillis(),
             childPartition);
-    LOG.debug("[{}] Inserting child partition token {}", partitionToken, childPartitionToken);
+    LOG.info("[{}] Inserting child partition token {}", partitionToken, childPartitionToken);
     final Boolean insertedRow =
         partitionMetadataDao
             .runInTransaction(
@@ -175,7 +175,7 @@ public class ChildPartitionsRecordAction {
     } else if (insertedRow) {
       metrics.incPartitionRecordMergeCount();
     } else {
-      LOG.debug(
+      LOG.info(
           "[{}] Child token {} already exists, skipping...", partitionToken, childPartitionToken);
     }
   }

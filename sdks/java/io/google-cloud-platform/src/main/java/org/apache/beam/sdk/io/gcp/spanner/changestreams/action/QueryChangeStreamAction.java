@@ -197,11 +197,11 @@ public class QueryChangeStreamAction {
     // Interrupter with soft timeout to commit the work if any records have been processed.
     RestrictionInterrupter<Timestamp> interrupter =
         RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
-
+    LOG.info("start to query change stream partition token {}", token);
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
-
+      LOG.info("Getting into the try block of query token {}", token);
       metrics.incQueryCounter();
       while (resultSet.next()) {
         final List<ChangeStreamRecord> records =
@@ -264,7 +264,7 @@ public class QueryChangeStreamAction {
           }
 
           if (maybeContinuation.isPresent()) {
-            LOG.debug("[{}] Continuation present, returning {}", token, maybeContinuation);
+            LOG.info("[{}] Continuation present, returning {}", token, maybeContinuation);
             bundleFinalizer.afterBundleCommit(
                 Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
                 updateWatermarkCallback(token, watermarkEstimator));
@@ -303,9 +303,9 @@ public class QueryChangeStreamAction {
       throw e;
     }
 
-    LOG.debug("[{}] change stream completed successfully", token);
+    LOG.info("[{}] change stream completed successfully", token);
     if (tracker.tryClaim(endTimestamp)) {
-      LOG.debug("[{}] Finishing partition", token);
+      LOG.info("[{}] Finishing partition", token);
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
       LOG.info("[{}] After attempting to finish the partition", token);
@@ -317,15 +317,15 @@ public class QueryChangeStreamAction {
       String token, WatermarkEstimator<Instant> watermarkEstimator) {
     return () -> {
       final Instant watermark = watermarkEstimator.currentWatermark();
-      LOG.debug("[{}] Updating current watermark to {}", token, watermark);
+      LOG.info("[{}] Updating current watermark to {}", token, watermark);
       try {
         partitionMetadataDao.updateWatermark(
             token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-          LOG.debug("[{}] Unable to update the current watermark, partition NOT FOUND", token);
+          LOG.info("[{}] Unable to update the current watermark, partition NOT FOUND", token);
         } else {
-          LOG.error("[{}] Error updating the current watermark", token, e);
+          LOG.info("[{}] Error updating the current watermark", token, e);
         }
       }
     };

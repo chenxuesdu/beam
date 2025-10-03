@@ -234,6 +234,59 @@ public class PartitionMetadataDao {
   }
 
   /**
+   * Fetches the earliest partition watermark from the partition metadata table that is not in a
+   * {@link State#FINISHED} state.
+   *
+   * @return the earliest partition watermark which is not in a {@link State#FINISHED} state.
+   */
+  public @Nullable Timestamp getUnfinishedMinWatermark() {
+    Statement statement;
+    final String minWatermark = "min_watermark";
+    if (this.isPostgres()) {
+      statement =
+          Statement.newBuilder(
+                  "SELECT MIN(\""
+                      + COLUMN_WATERMARK
+                      + "\") as "
+                      + minWatermark
+                      + " FROM \""
+                      + metadataTableName
+                      + "@{FORCE_INDEX=_base_table}"
+                      + "\" WHERE \""
+                      + COLUMN_STATE
+                      + "\" != $1")
+              .bind("p1")
+              .to(State.FINISHED.name())
+              .build();
+    } else {
+      statement =
+          Statement.newBuilder(
+                  "SELECT MIN("
+                      + COLUMN_WATERMARK
+                      + ") as "
+                      + minWatermark
+                      + " FROM "
+                      + metadataTableName
+                      + "@{FORCE_INDEX=_base_table}"
+                      + " WHERE "
+                      + COLUMN_STATE
+                      + " != @state")
+              .bind("state")
+              .to(State.FINISHED.name())
+              .build();
+    }
+    try (ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(statement, Options.tag("query=getUnfinishedMinWatermark"))) {
+      if (resultSet.next() && !resultSet.isNull(minWatermark)) {
+        return resultSet.getTimestamp(minWatermark);
+      }
+      return null;
+    }
+  }
+
+  /**
    * Fetches all partitions with a {@link PartitionMetadataAdminDao#COLUMN_CREATED_AT} less than the
    * given timestamp. The results are ordered by the {@link
    * PartitionMetadataAdminDao#COLUMN_CREATED_AT} and {@link
