@@ -29,6 +29,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoa
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Asynchronously compute the earliest partition watermark and stores it in memory. The value will
@@ -39,6 +41,7 @@ import org.joda.time.Duration;
  */
 public class AsyncWatermarkCache implements WatermarkCache {
 
+  private static final Logger LOG = LoggerFactory.getLogger(AsyncWatermarkCache.class);
   private static final String THREAD_NAME_FORMAT = "watermark_loading_thread_%d";
   private static final Object MIN_WATERMARK_KEY = new Object();
   private final LoadingCache<Object, Optional<Timestamp>> cache;
@@ -62,8 +65,15 @@ public class AsyncWatermarkCache implements WatermarkCache {
                         key -> {
                           Timestamp unfinishedMinTimes =
                               dao.getUnfinishedMinWatermarkFrom(lastCachedMinWatermark.get());
-                          if (unfinishedMinTimes != null
-                              && lastCachedMinWatermark.get().compareTo(unfinishedMinTimes) < 0) {
+                          if (unfinishedMinTimes == null) {
+                            unfinishedMinTimes = dao.getUnfinishedMinWatermark();
+                            LOG.info(
+                                "Get unfinishedMinTimes from full tablescan, the value is {}, the value of lastCachedMinWatermark is {}",
+                                unfinishedMinTimes,
+                  
+                                lastCachedMinWatermark);
+                          }
+                          if (unfinishedMinTimes != null) {
                             lastCachedMinWatermark.set(unfinishedMinTimes);
                           }
                           return Optional.ofNullable(unfinishedMinTimes);
